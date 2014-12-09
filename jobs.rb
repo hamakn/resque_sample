@@ -1,6 +1,17 @@
 require 'resque'
 require 'json'
 
+module Retryable
+  def on_failure_retry(e, *args)
+    puts "Performing #{self} caused an exception (#{e}). Retrying..."
+    if rand < 0.5
+      Resque.enqueue Job, *args
+    else
+      Resque.enqueue self, *args
+    end
+  end
+end
+
 module Job
   @queue = :default
 
@@ -11,6 +22,7 @@ module Job
 end
 
 module FailingJob
+  extend Retryable
   @queue = :failing
 
   def self.perform(params)
